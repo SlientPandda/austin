@@ -1,11 +1,12 @@
 package com.java3y.austin.handler.handler.impl;
 
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.text.CharSequenceUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.google.common.base.Throwables;
 import com.java3y.austin.common.constant.CommonConstant;
+import com.java3y.austin.common.domain.RecallTaskInfo;
 import com.java3y.austin.common.domain.TaskInfo;
 import com.java3y.austin.common.dto.account.sms.SmsAccount;
 import com.java3y.austin.common.dto.model.SmsContentModel;
@@ -16,7 +17,6 @@ import com.java3y.austin.handler.handler.BaseHandler;
 import com.java3y.austin.handler.handler.Handler;
 import com.java3y.austin.handler.script.SmsScript;
 import com.java3y.austin.support.dao.SmsRecordDao;
-import com.java3y.austin.support.domain.MessageTemplate;
 import com.java3y.austin.support.domain.SmsRecord;
 import com.java3y.austin.support.service.ConfigService;
 import com.java3y.austin.support.utils.AccountUtils;
@@ -39,29 +39,24 @@ import java.util.Random;
 @Slf4j
 public class SmsHandler extends BaseHandler implements Handler {
 
-    public SmsHandler() {
-        channelCode = ChannelType.SMS.getCode();
-    }
-
-    @Autowired
-    private SmsRecordDao smsRecordDao;
-
-    @Autowired
-    private ConfigService config;
-
-    @Autowired
-    private ApplicationContext applicationContext;
-
-    @Autowired
-    private AccountUtils accountUtils;
-
     /**
      * 流量自动分配策略
      */
     private static final Integer AUTO_FLOW_RULE = 0;
-
     private static final String FLOW_KEY = "msgTypeSmsConfig";
     private static final String FLOW_KEY_PREFIX = "message_type_";
+    @Autowired
+    private SmsRecordDao smsRecordDao;
+    @Autowired
+    private ConfigService config;
+    @Autowired
+    private ApplicationContext applicationContext;
+    @Autowired
+    private AccountUtils accountUtils;
+
+    public SmsHandler() {
+        channelCode = ChannelType.SMS.getCode();
+    }
 
     @Override
     public boolean handler(TaskInfo taskInfo) {
@@ -105,8 +100,7 @@ public class SmsHandler extends BaseHandler implements Handler {
         }
 
         // 生成一个随机数[1,total]，看落到哪个区间
-        Random random = new Random();
-        int index = random.nextInt(total) + 1;
+        int index = new Random().nextInt(total) + 1;
 
         MessageTypeSmsConfig supplier = null;
         MessageTypeSmsConfig supplierBack = null;
@@ -124,7 +118,7 @@ public class SmsHandler extends BaseHandler implements Handler {
             }
             index -= messageTypeSmsConfigs.get(i).getWeights();
         }
-        return null;
+        return new MessageTypeSmsConfig[0];
     }
 
     /**
@@ -174,15 +168,20 @@ public class SmsHandler extends BaseHandler implements Handler {
      */
     private String getSmsContent(TaskInfo taskInfo) {
         SmsContentModel smsContentModel = (SmsContentModel) taskInfo.getContentModel();
-        if (StrUtil.isNotBlank(smsContentModel.getUrl())) {
-            return smsContentModel.getContent() + StrUtil.SPACE + smsContentModel.getUrl();
+        if (CharSequenceUtil.isNotBlank(smsContentModel.getUrl())) {
+            return smsContentModel.getContent() + CharSequenceUtil.SPACE + smsContentModel.getUrl();
         } else {
             return smsContentModel.getContent();
         }
     }
 
+    /**
+     * 短信不支持撤回
+     * 腾讯云文档 eg：https://cloud.tencent.com/document/product/382/52077
+     * @param recallTaskInfo
+     */
     @Override
-    public void recall(MessageTemplate messageTemplate) {
+    public void recall(RecallTaskInfo recallTaskInfo) {
 
     }
 }

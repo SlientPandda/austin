@@ -4,15 +4,17 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DatePattern;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.text.StrPool;
 import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import com.java3y.austin.common.enums.AnchorState;
+import com.alipay.api.domain.MerchantMsgTemplateVO;
 import com.java3y.austin.common.enums.ChannelType;
 import com.java3y.austin.common.enums.EnumUtil;
 import com.java3y.austin.common.enums.SmsStatus;
 import com.java3y.austin.support.domain.ChannelAccount;
+import com.java3y.austin.support.domain.MessageTemplate;
 import com.java3y.austin.support.domain.SmsRecord;
 import com.java3y.austin.support.utils.TaskInfoUtils;
 import com.java3y.austin.web.vo.amis.CommonAmisVo;
@@ -116,7 +118,7 @@ public class Convert4Amis {
         for (Field field : fields) {
             if (FLAT_FIELD_NAME.contains(field.getName())) {
                 String fieldValue = (String) ReflectUtil.getFieldValue(obj, field);
-                JSONObject jsonObject = JSONObject.parseObject(fieldValue);
+                JSONObject jsonObject = JSON.parseObject(fieldValue);
                 for (String key : jsonObject.keySet()) {
                     /**
                      * 钉钉OA消息回显
@@ -160,7 +162,7 @@ public class Convert4Amis {
         CommonAmisVo officialAccountParam = null;
         for (WxMpTemplate wxMpTemplate : allPrivateTemplate) {
             if (wxTemplateId.equals(wxMpTemplate.getTemplateId())) {
-                String[] data = wxMpTemplate.getContent().split(StrUtil.LF);
+                String[] data = wxMpTemplate.getContent().split(StrPool.LF);
                 officialAccountParam = CommonAmisVo.builder()
                         .type("input-table")
                         .name("officialAccountParam")
@@ -327,6 +329,45 @@ public class Convert4Amis {
     /**
      * 【这个方法不用看】，纯粹为了适配amis前端
      * <p>
+     * 得到模板的参数 组装好 返回给前端展示
+     *
+     * @param alipayTemplateId
+     * @param templateList
+     * @return
+     */
+    public static CommonAmisVo getAlipayTemplateParam(String alipayTemplateId,  List<MerchantMsgTemplateVO> templateList) {
+        CommonAmisVo officialAccountParam = null;
+        for (MerchantMsgTemplateVO templateInfo : templateList) {
+            if (alipayTemplateId.equals(templateInfo.getTemplateId())) {
+                String[] data = templateInfo.getKeywordDesc().split(StrUtil.COMMA);
+                officialAccountParam = CommonAmisVo.builder()
+                        .type("input-table")
+                        .name("miniProgramParam")
+                        .addable(true)
+                        .editable(true)
+                        .needConfirm(false)
+                        .build();
+                List<CommonAmisVo.ColumnsDTO> columnsDtoS = new ArrayList<>();
+                //使用i作为变量循环
+                for (int i=0;i<data.length;i++) {
+                    String name ="keyword"+String.valueOf(i+1);
+                    String label = data[i];
+                    CommonAmisVo.ColumnsDTO columnsDTO = CommonAmisVo.ColumnsDTO.builder()
+                            .name(name).type("input-text").required(true).quickEdit(true).label(label).build();
+                    columnsDtoS.add(columnsDTO);
+                }
+
+                officialAccountParam.setColumns(columnsDtoS);
+
+            }
+        }
+        return officialAccountParam;
+
+    }
+
+    /**
+     * 【这个方法不用看】，纯粹为了适配amis前端
+     * <p>
      * 1、得到微信服务号的【带参数】二维码返回给前端
      * 2、让前端轮询请求 接口看是否已登录
      *
@@ -386,19 +427,19 @@ public class Convert4Amis {
      * @param businessId
      * @return
      */
-    public static EchartsVo getEchartsVo(Map<Object, Object> anchorResult, String templateName, String businessId) {
+    public static EchartsVo getEchartsVo(Map<Object, Object> anchorResult, MessageTemplate messageTemplate, String businessId) {
         List<String> xAxisList = new ArrayList<>();
         List<Integer> actualData = new ArrayList<>();
         if (CollUtil.isNotEmpty(anchorResult)) {
             anchorResult = MapUtil.sort(anchorResult);
             for (Map.Entry<Object, Object> entry : anchorResult.entrySet()) {
-                String description = EnumUtil.getDescriptionByCode(Integer.valueOf(String.valueOf(entry.getKey())), AnchorState.class);
+                String description = AnchorStateUtils.getDescriptionByState(messageTemplate.getSendChannel(), Integer.valueOf(String.valueOf(entry.getKey())));
                 xAxisList.add(description);
                 actualData.add(Integer.valueOf(String.valueOf(entry.getValue())));
             }
         }
 
-        String title = "【" + templateName + "】在" + DateUtil.format(DateUtil.parse(String.valueOf(TaskInfoUtils.getDateFromBusinessId(Long.valueOf(businessId)))), DatePattern.CHINESE_DATE_FORMATTER) + "的下发情况：";
+        String title = "【" + messageTemplate.getName() + "】在" + DateUtil.format(DateUtil.parse(String.valueOf(TaskInfoUtils.getDateFromBusinessId(Long.valueOf(businessId)))), DatePattern.CHINESE_DATE_FORMATTER) + "的下发情况：";
 
         return EchartsVo.builder()
                 .title(EchartsVo.TitleVO.builder().text(title).build())
