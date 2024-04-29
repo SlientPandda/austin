@@ -8,6 +8,7 @@ redis.call('zremrangeByScore', KEYS[1], 0, ARGV[2]-ARGV[1])
 -- 2\. 统计当前元素数量
 local res = redis.call('zcard', KEYS[1])
 -- 3\. 是否超过阈值
+-- 没有超过阈值则添加到zset中并设置过期时间，value是雪花算法生成的唯一id，score是当前时间戳，超过则返回1
 if (res == nil) or (res < tonumber(ARGV[3])) then
     redis.call('zadd', KEYS[1], ARGV[2], ARGV[4])
     redis.call('expire', KEYS[1], ARGV[1]/1000)

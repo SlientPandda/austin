@@ -44,6 +44,7 @@ public abstract class AbstractLazyPending<T> {
 
     /**
      * 单线程消费 阻塞队列的数据
+     * todo 如果超时多线程来消费阻塞队列
      */
     @PostConstruct
     public void initConsumePending() {
